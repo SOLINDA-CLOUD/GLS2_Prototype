@@ -191,7 +191,7 @@ class ProjectRab(models.Model):
         ('line_note', "Note")], default=False, help="Technical field for UX purpose.")
     sequence = fields.Integer('Sequence')
 
-    product_id = fields.Many2one('product.product', string='Product',required=True)
+    product_id = fields.Many2one('product.product', string='Product')
     product_uom_category_id = fields.Many2one(related='product_id.uom_id.category_id', readonly=True)
 
     name = fields.Char('Description')
