@@ -5,7 +5,7 @@ class ProjectProject(models.Model):
 
 
     rab_id = fields.Many2one('cost.sheet',related='sale_order_id.rab_id', string='RAB',store=True)
-    rap_id = fields.Many2one('cost.sheet', string='RAP Plan')
+    rap_id = fields.Many2one('rap.rap', string='RAP Plan')
     purchase_id = fields.Many2one('purchase.requisition', string='RAP')
 
     def create_rap(self):
@@ -23,9 +23,8 @@ class ProjectProject(models.Model):
         #         'price_unit': template.price_unit
         #     }) for template in self.rab_id.line_ids if template.product_id]
         # })
-        rap = self.env['cost.sheet'].create({
+        rap = self.env['rap.rap'].create({
                 'date_document': fields.Date.today(),
-                'type':'rap',
                 'line_ids' : [(0,0,{
                   'name': data.name,
                     'display_type': data.display_type,
@@ -40,7 +39,6 @@ class ProjectProject(models.Model):
                     'end_date': data.end_date,
                     'no_pos': data.no_pos,
                     'price_unit': data.price_unit,
-                    'margin_percent': data.margin_percent
                 }) for data in self.rab_id.line_ids]
 
         })
@@ -50,7 +48,6 @@ class ProjectProject(models.Model):
         return {
             "type": "ir.actions.act_window",
             "view_mode": "form",
-            "res_model": "cost.sheet",
-            'view_id' : self.env.ref('solinda_cost_sheet.cost_sheet_rap_view_form').id,
+            "res_model": "rap.rap",
             "res_id": rap.id
         }

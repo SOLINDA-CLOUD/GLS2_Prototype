@@ -28,6 +28,7 @@
         'views/crm_views.xml',
         'views/rab_template_views.xml',
         'views/cost_sheet_views.xml',
+        'views/rap_views.xml',
         'views/purchase_requisition_views.xml',
         'views/project_views.xml',
         'views/sale_order_views.xml',

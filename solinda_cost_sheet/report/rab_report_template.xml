@@ -143,14 +143,14 @@
                     <div id="total" class="row" name="total">
                         <div t-attf-class="#{'col-4' if report_type != 'html' else 'col-sm-7 col-md-5'} ml-auto">
                             <table class="table table-sm">
-                                <tr class="border-black o_subtotal" style="">
+                                <!-- <tr class="border-black o_subtotal" style="">
                                     <td name="td_amount_untaxed_label">
                                         <strong>Subtotal</strong>
                                     </td>
                                     <td name="td_amount_untaxed" class="text-right">
                                         <span t-field="doc.total_without_margin" />
                                     </td>
-                                </tr>
+                                </tr> -->
                                 <!-- <t t-foreach="doc.amount_by_group" t-as="amount_by_group">
                                     <tr style="">
                                         <t t-if="amount_by_group[5] == 1 and doc.total_without_margin == amount_by_group[2]">

@@ -72,11 +72,21 @@ class CsRAP(models.Model):
                     )
                     
 
+    def action_rap_view_list(self):
+        
+        return {
+            "type": "ir.actions.act_window",
+            "view_mode": "tree",
+            "res_model": "project.rap",
+            "domain": [('rap_id', '=', self.id)],
+            "context": {'default_rap_id':self.id} 
+        }
+
+        
     def action_submit(self):
-        if self.type == 'rab':
-            self.write({'state':'submit'})
-        else:
-            self.waiting_approval()
+        
+        self.write({'state':'submit'})
+        self.waiting_approval()
 
     def action_done(self):
         self.write({'state':'done'})
@@ -168,7 +178,7 @@ class ProjectRab(models.Model):
         ('line_note', "Note")], default=False, help="Technical field for UX purpose.")
     sequence = fields.Integer('Sequence')
 
-    product_id = fields.Many2one('product.product', string='Product',required=True)
+    product_id = fields.Many2one('product.product', string='Product')
     product_uom_category_id = fields.Many2one(related='product_id.uom_id.category_id', readonly=True)
 
     name = fields.Char('Description')
@@ -194,4 +204,21 @@ class ProjectRab(models.Model):
             amount = this.price_unit * this.margin_percent
             this.margin = amount
             this.price_subtotal = this.price_unit + amount
-
+            
+    def create_requisition(self):
+        request = self.env['purchase.requisition'].create({
+            'user_id': self.env.uid,
+            'ordering_date': fields.Date.today(),
+            'origin': self.rap_id.name,
+            'line_ids':[(0,0,{
+                'product_id':self.product_id.id,
+                'product_qty': self.product_qty,
+                'price_unit': self.price_unit
+            })for data in self]
+        })
+        return {
+            "type": "ir.actions.act_window",
+            "view_mode": "form",
+            "res_model": "purchase.requisition",
+            "res_id": request.id
+        }

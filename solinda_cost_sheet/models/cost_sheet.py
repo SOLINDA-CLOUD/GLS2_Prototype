@@ -29,20 +29,75 @@ class CostSheet(models.Model):
         ('done', 'Done'),
         ('cancel', 'Canceled'),
     ], string='Status',tracking=True, default="draft")
+    margin_type = fields.Selection([
+        ('percentage', 'Percentage'),
+        ('amount', 'Amount'),
+    ], string='Margin Type',default='percentage')
+    margin_amount_input = fields.Monetary('Margin Amount')
+    margin_percent_input = fields.Float('Margin %')
     
 
     # purchase_id = fields.Many2one('purchase.requisition', string='Purchase')
 
     total_amount = fields.Float(compute='_compute_total_amount', string='Total Amount',store=True)
-    total_margin = fields.Float(compute='_compute_total_amount', string='Margin',store=True)
+    total_margin = fields.Float(compute='_compute_total_amount', string='Total Margin',store=True)
     total_without_margin = fields.Float(compute='_compute_total_amount', string='Price Subtotal',store=True)
     currency_id = fields.Many2one('res.currency', string='currency',default=lambda self:self.env.company.currency_id.id)
-    type = fields.Selection([
-        ('rab', 'RAB'),
-        ('rap', 'RAP'),
 
-    ], string='Type')
-    is_approver = fields.Boolean(compute='_compute_is_approver', string='Is Approver')
+    
+    def action_create_requisition(self):
+        request = self.env['purchase.requisition'].create({
+            'user_id': self.env.uid,
+            'ordering_date': fields.Date.today(),
+            'origin': self.name,
+            'line_ids':[(0,0,{
+                'product_id':data.product_id.id,
+                'product_description_variants': data.product_id.name,
+                'product_qty': data.product_qty,
+                'price_unit': data.price_unit
+            })for data in self.line_ids if not data.display_type]
+        })
+        return {
+            "type": "ir.actions.act_window",
+            "view_mode": "form",
+            "res_model": "purchase.requisition",
+            "res_id": request.id
+        }
+    
+    @api.depends('margin_amount_input','margin_percent_input')
+    def _compute_total_amount(self):
+        for this in self:
+            total = 0
+            total_without_margin = 0
+            total_margin = 0
+            if this.margin_type == 'percentage':
+ 
+                total = sum(this.line_ids.mapped('price_subtotal'))
+                total_without_margin = sum(this.line_ids.mapped('price_unit'))
+                total_margin = sum(this.line_ids.mapped('margin'))
+            else:
+
+                total = sum(this.line_ids.mapped('price_subtotal')) + this.margin_amount_input
+                total_without_margin = sum(this.line_ids.mapped('price_unit'))
+                total_margin = this.margin_amount_input
+                
+            this.total_amount = total
+            this.total_without_margin = total_without_margin
+            this.total_margin = total_margin
+
+    
+    @api.onchange('margin_type')
+    def _onchange_margin_type(self):
+        self.margin_amount_input = 0.0
+        self.margin_percent_input = 0.0
+    
+    @api.onchange('margin_percent_input')
+    def _onchange_margin_percent_input(self):
+        if self.margin_percent_input:
+            self.line_ids.write({'margin_percent':self.margin_percent_input})
+        else:
+            self.line_ids.write({'margin_percent':self.margin_percent_input})
+            
     
     @api.onchange('crm_id')
     def _onchange_crm_id(self):
@@ -91,15 +146,11 @@ class CostSheet(models.Model):
                     
 
     def action_submit(self):
-        if self.type == 'rab':
-            self.write({'state':'submit'})
-        else:
-            self.waiting_approval()
-
+        self.write({'state':'submit'})
     def action_done(self):
         self.write({'state':'done'})
     def action_to_draft(self):
-        self.write({'state_rap':'draft','approval_id':False,'approver_id':False})
+        self.write({'state':'draft'})
     
     # def create_rap(self):
     #     purchase = self.env['purchase.requisition'].create({
@@ -144,13 +195,7 @@ class CostSheet(models.Model):
         res.crm_id.rab_id = res.id
         return res 
     
-    @api.depends('line_ids.price_subtotal','line_ids.margin','line_ids.price_unit')
-    def _compute_total_amount(self):
-        for this in self:
-            this.total_amount = sum(this.line_ids.mapped('price_subtotal'))
-            this.total_without_margin = sum(this.line_ids.mapped('price_unit'))
-            this.total_margin = sum(this.line_ids.mapped('margin'))
-
+   
     @api.onchange('rab_template_id')
     def _onchange_rab_template_id(self):
         if self.line_ids:
@@ -206,18 +251,50 @@ class ProjectRab(models.Model):
     end_date = fields.Date('Finish Date')
     no_pos = fields.Char('No')
     margin = fields.Float('Margin',compute='_compute_price')
-    margin_percent = fields.Float( string='Margin Percent')
+    margin_percent = fields.Float(string='Margin Percent',compute='_compute_price')
     price_subtotal = fields.Float(compute='_compute_price', string='Subtotal')
+    
+    
+    def create_requisition(self):
+        request = self.env['purchase.requisition'].create({
+            'user_id': self.env.uid,
+            'ordering_date': fields.Date.today(),
+            'origin': self.cost_sheet_id.name,
+            'line_ids':[(0,0,{
+                'product_id':self.product_id.id,
+                'product_qty': self.product_qty,
+                'price_unit': self.price_unit
+            })]
+        })
+        return {
+            "type": "ir.actions.act_window",
+            "view_mode": "form",
+            "res_model": "purchase.requisition",
+            "res_id": request.id
+        }
+
 
     
-    @api.depends('margin_percent','price_unit')
+    @api.depends('price_unit','cost_sheet_id.margin_percent_input','cost_sheet_id.margin_amount_input')
     def _compute_price(self):
         for this in self:
-            amount = 0
-            amount = this.price_unit * this.margin_percent
-            this.margin = amount
-            this.price_subtotal = this.price_unit + amount
-
+            margin = 0.0
+            margin_percent = 0.0
+            subtotal = 0.0
+            if this.cost_sheet_id.margin_type == 'percentage':
+                margin_percent = this.cost_sheet_id.margin_percent_input
+                margin = this.price_unit * margin_percent
+                subtotal = this.price_unit * this.product_qty + margin
+            else:
+                margin_percent = 0.0
+                margin = 0.0
+                subtotal = this.price_unit * this.product_qty 
+               
+                
+            this.margin = margin
+            this.margin_percent = margin_percent
+            this.price_subtotal = subtotal
+            
 
 
 class RabTemplate(models.Model):

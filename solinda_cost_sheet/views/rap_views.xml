@@ -2,12 +2,14 @@
 <odoo>
 
     <data>
-        <!-- VIEW RAB -->
-        <record id="cost_sheet_rab_view_tree" model="ir.ui.view">
-            <field name="name">cost.sheet.rab.view.tree</field>
-            <field name="model">cost.sheet</field>
+
+        <!-- VIEW RAP -->
+
+        <record id="cost_sheet_rap_view_tree" model="ir.ui.view">
+            <field name="name">rap.rap.rap.view.tree</field>
+            <field name="model">rap.rap</field>
             <field name="arch" type="xml">
-                <tree sample="1">
+                <tree sample="1" create="0">
                     <field name="name" />
                     <field name="date_document" />
                     <field name="user_id" />
@@ -18,38 +20,37 @@
             </field>
         </record>
 
-        <record id="cost_sheet_rab_view_form" model="ir.ui.view">
-            <field name="name">cost.sheet.rab.view.form</field>
-            <field name="model">cost.sheet</field>
+        <record id="cost_sheet_rap_view_form" model="ir.ui.view">
+            <field name="name">rap.rap.rap.view.form</field>
+            <field name="model">rap.rap</field>
             <field name="arch" type="xml">
                 <form string="">
                     <header>
-                        <button string="Submit" name="action_submit" states="draft" type="object" class="oe_highlight"/>
-                        <button string="Done" name="action_done" states="submit" type="object" class="oe_highlight"/>
-                        <button string="Set to Draft" name="action_to_draft" states="done" type="object"/>
-                        <button string="Create Purchase Agreement" name="action_create_requisition" type="object" invisible="1"/>
+                        <button string="Submit" name="action_submit" attrs="{'invisible':[('state','!=', 'draft')]}" type="object" class="oe_highlight"/>
+                        <button string="Approve" name="waiting_approval" type="object" attrs="{'invisible':[('is_approver','=', False)]}" class="oe_highlight"/>
+                        <button string="Set to Draft" name="action_to_draft" attrs="{'invisible':[('state','!=', 'done')]}" type="object"/>
                         <field name="state" widget="statusbar" statusbar_visible="draft,submit,done" />
                     </header>
                     <sheet>
-                        <div class="oe_button_box" name="button_box">
+                        <!-- <div class="oe_button_box" name="button_box">
                             <button name="action_view_crm" type="object" string="CRM" class="oe_stat_button" icon="fa-handshake-o" attrs="{'invisible':[('state','=','draft')]}"/>
-                        </div>
+                        </div> -->
                         <div class="oe_title">
                             <h1>
                                 <field name="name" readonly="1"/>
                             </h1>
                         </div>
                         <group col="4">
-                            <field name="crm_id" required="1" />
-                            <field name="partner_id" />
-                            <field name="rab_template_id" />
                             <field name="date_document" />
-                            <field name="margin_type" widget="radio" options="{'horizontal':true}" />
                             <field name="user_id" readonly="1" />
                             <field name="currency_id" invisible="1" />
+                            <field name="is_approver" invisible="1" />
+                            <field name="approval_id" invisible="1" />
+                            <field name="approver_id" invisible="1" />
                         </group>
                         <notebook>
-                            <page string="RAB">
+                            <page string="RAP">
+                                <button string="View List" invisible="1" name="action_rap_view_list" type="object" class="oe_highlight"/>
                                 <field name="line_ids" widget="section_and_note_one2many">
                                     <tree editable="bottom">
                                         <control>
@@ -68,13 +69,12 @@
                                         <field name="vol_factor" optional="hide"/>
                                         <field name="item_factor" optional="hide" />
                                         <field name="lab_factor" optional="hide" />
+                                        <!-- <field name="price_unit" /> -->
                                         <field name="price_unit" />
-                                        <field name="margin_percent" readonly="1" invisible="1" widget="percentage" optional="hide"/>
-                                        <field name="margin" invisible="1" optional="hide" />
                                         <field name="start_date" optional="hide" />
                                         <field name="end_date" optional="hide" />
                                         <field name="price_subtotal" />
-                                        <button name="create_requisition" type="object" icon="fa-pencil-square-o" />
+                                        <button name="create_requisition" invisible="1" type="object" icon="fa-pencil-square-o" />
 
                                     </tree>
 
@@ -84,10 +84,8 @@
                                         <field name="note" nolabel="1" placeholder="Terms and conditions..."/>
                                     </group>
                                     <group class="oe_subtotal_footer oe_right" colspan="2" name="sale_total">
-                                        <field name="total_without_margin" widget="monetary" options="{'currency_field': 'currency_id'}"/>
-                                        <field name="margin_amount_input" attrs="{'invisible':[('margin_type','=','percentage')]}" />
-                                        <field name="margin_percent_input" widget="percentage" attrs="{'invisible':[('margin_type','=','amount')]}" />
-                                        <field name="total_margin" widget="monetary" attrs="{'invisible':[('margin_type','=','amount')]}" options="{'currency_field': 'currency_id'}"/>
+                                        <!-- <field name="total_without_margin" widget="monetary" options="{'currency_field': 'currency_id'}"/> -->
+                                        <!-- <field name="total_margin" widget="monetary" options="{'currency_field': 'currency_id'}"/> -->
                                         <div class="oe_subtotal_footer_separator oe_inline o_td_label">
                                             <label for="total_amount"/>
                                         </div>
@@ -108,26 +106,35 @@
         </record>
 
 
-        <!-- END VIEW RAB -->
-
-
-
-
-        <record id="cost_sheet_rab_action" model="ir.actions.act_window">
-            <field name="name">Cost Sheet</field>
-            <field name="res_model">cost.sheet</field>
-            <field name="view_mode">tree,form</field>
-            <field name="domain">[]</field>
-            <field name="context">{}</field>
-
-            <field name="help" type="html">
-                <p class="o_view_nocontent_smiling_face">
-                Create a new Cost Sheet
-                </p>
+        <record id="project_rap_view_tree" model="ir.ui.view">
+            <field name="name">project.rap.view.tree</field>
+            <field name="model">project.rap</field>
+            <field name="arch" type="xml">
+                <tree string="">
+                    <field name="product_id" />
+                    <field name="name" />
+                    <field name="product_qty" />
+                    <field name="price_unit" />
+                    <field name="price_subtotal" />
+                </tree>
             </field>
         </record>
 
 
+        <!-- END VIEW RAP -->
+
+        <record id="cost_sheet_rap_action" model="ir.actions.act_window">
+            <field name="name">RAP</field>
+            <field name="res_model">rap.rap</field>
+            <field name="view_mode">tree,form</field>
+            <field name="domain">[]</field>
+            <field name="context">{}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                Create a new RAP
+                </p>
+            </field>
+        </record>
 
 
     </data>
