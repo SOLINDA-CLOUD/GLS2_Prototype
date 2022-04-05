@@ -7,9 +7,9 @@
         <field name="inherit_id" ref="purchase.purchase_order_form"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='order_line']/tree/field[@name='price_subtotal']" position="before">
-                <field name="top" />
-                <field name="delivery_time" />
-                <field name="notes" />
+                <field name="top" optional="show" string="ToP" />
+                <field name="delivery_time" optional="show" string="Del.Time" />
+                <field name="notes" optional="show" />
             </xpath>
 
         </field>
