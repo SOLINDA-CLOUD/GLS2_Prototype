@@ -73,12 +73,12 @@ class CostSheet(models.Model):
             if this.margin_type == 'percentage':
  
                 total = sum(this.line_ids.mapped('price_subtotal'))
-                total_without_margin = sum(this.line_ids.mapped('price_unit'))
+                total_without_margin = sum(this.line_ids.mapped('price_subtotal'))
                 total_margin = sum(this.line_ids.mapped('margin'))
             else:
 
                 total = sum(this.line_ids.mapped('price_subtotal')) + this.margin_amount_input
-                total_without_margin = sum(this.line_ids.mapped('price_unit'))
+                total_without_margin = sum(this.line_ids.mapped('price_subtotal'))
                 total_margin = this.margin_amount_input
                 
             this.total_amount = total
