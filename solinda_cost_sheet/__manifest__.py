@@ -20,7 +20,7 @@
     'version': '0.1',
 
     # any module necessary for this one to work correctly
-    'depends': ['base','project','sale_project','sale_crm','purchase_requisition','report_xlsx'],
+    'depends': ['base','project','sale_project','sale_crm','purchase_requisition','report_xlsx','purchase'],
 
     # always loaded
     'data': [
@@ -36,6 +36,7 @@
         'views/sequence_data.xml',
         'report/action_report.xml',
         'report/rab_report_template.xml',
+        'report/purchase_order_views.xml',
         'views/menuitem_views.xml',
         'views/templates.xml',
     ],

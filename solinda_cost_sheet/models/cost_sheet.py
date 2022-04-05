@@ -253,6 +253,7 @@ class ProjectRab(models.Model):
     margin_percent = fields.Float(string='Margin Percent',compute='_compute_price')
     price_subtotal = fields.Float(compute='_compute_price', string='Subtotal')
     
+    price_final = fields.Float('Price Final')    
     
     def create_requisition(self):
         request = self.env['purchase.requisition'].create({
