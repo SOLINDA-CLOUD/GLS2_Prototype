@@ -1,3 +1,4 @@
+from odoo.tools.misc import get_lang
 from odoo import _, api, fields, models
 
 class CostSheet(models.Model):
@@ -11,21 +12,10 @@ class CostSheet(models.Model):
     date_document = fields.Date('Request Date',tracking=True,default=fields.Date.today)
     user_id = fields.Many2one('res.users', string='Responsible',default=lambda self:self.env.user.id)
     rab_template_id = fields.Many2one('rab.template', string='RAB Template',tracking=True)
-    line_ids = fields.One2many('project.rab', 'cost_sheet_id', string='RAB')  
     note = fields.Text('Term and condition')
-    approval_id = fields.Many2one('approval.approval', string='Approval')
-    approver_id = fields.Many2one('approver.line', string='Approver')
     state = fields.Selection([
         ('draft', 'Draft'),
         ('submit', 'Submited'),
-        ('done', 'Done'),
-        ('cancel', 'Canceled'),
-    ], string='Status',tracking=True, default="draft")
-    
-    state_rap = fields.Selection([
-        ('draft', 'Draft'),
-        ('submit', 'Submited'),
-        ('waiting', 'Waiting Approval'),
         ('done', 'Done'),
         ('cancel', 'Canceled'),
     ], string='Status',tracking=True, default="draft")
@@ -36,6 +26,9 @@ class CostSheet(models.Model):
     margin_amount_input = fields.Monetary('Margin Amount')
     margin_percent_input = fields.Float('Margin %')
     
+    line_ids = fields.One2many('project.rab', 'cost_sheet_id', string='RAB.')  
+    rab_line_ids = fields.One2many('rab.line', 'cost_sheet_id', string='RAB')
+    
 
     # purchase_id = fields.Many2one('purchase.requisition', string='Purchase')
 
@@ -44,6 +37,10 @@ class CostSheet(models.Model):
     total_without_margin = fields.Float(compute='_compute_total_amount', string='Price Subtotal',store=True)
     currency_id = fields.Many2one('res.currency', string='currency',default=lambda self:self.env.company.currency_id.id)
 
+    
+    # RAB NON PROJECT
+    
+    
     
     def action_create_requisition(self):
         request = self.env['purchase.requisition'].create({
@@ -222,6 +219,279 @@ class CostSheet(models.Model):
         }) 
 
 # RAB 
+
+class RabLine(models.Model):
+    _name = 'rab.line'
+    _description = 'Rab Line'
+    
+    cost_sheet_id = fields.Many2one('cost.sheet', string='Cost Sheet')
+    display_type = fields.Selection([
+        ('line_section', "Section"),
+        ('line_note', "Note")], default=False, help="Technical field for UX purpose.")
+    sequence = fields.Integer('Sequence')
+    product_id = fields.Many2one('product.product', string='Product')
+    partner_id = fields.Many2one('res.partner', related='cost_sheet_id.partner_id', string='Partner', readonly=True, store=True)
+    product_uom_category_id = fields.Many2one(related='product_id.uom_id.category_id', readonly=True)
+    name = fields.Char('Description')
+    product_qty = fields.Float('Quantity',default=1.0)
+    uom_id = fields.Many2one('uom.uom', string='UoM')
+    price_unit = fields.Float(compute='_compute_amount', string='Price')
+    propotional_percent = fields.Float(compute='_compute_amount', string='Propotional Percentage')
+    suggested_proposional_percent = fields.Float(compute='_compute_amount', string='Suggested Propotional Percentage')
+    commercial_price  = fields.Float('Commercial Price')
+    commercial_price_percentage = fields.Float('Commercial Price Percentage')   
+    
+    @api.onchange('product_id')
+    def onchange_product_id(self):
+        if not self.product_id:
+            return
+
+        self.uom_id = self.product_id.uom_po_id or self.product_id.uom_id
+        product_lang = self.product_id.with_context(
+            lang=get_lang(self.env, self.partner_id.lang).code,
+            partner_id=self.partner_id.id,
+            company_id=self.env.company.id,
+        )
+        name = product_lang.display_name
+        if product_lang.description_purchase:
+            name += '\n' + product_lang.description_purchase
+        self.name = name
+
+    
+    
+    @api.depends('')
+    def _compute_price_unit(self):
+        pass    
+    
+    
+class GeneralWork(models.Model):
+    _name = 'general.work'
+    _description = 'General Work'
+    
+    cost_sheet_id = fields.Many2one('cost.sheet', string='Cost Sheet')
+    display_type = fields.Selection([
+        ('line_section', "Section"),
+        ('line_note', "Note")], default=False, help="Technical field for UX purpose.")
+    sequence = fields.Integer('Sequence')
+    product_id = fields.Many2one('product.product', string='Product')
+    partner_id = fields.Many2one('res.partner', related='cost_sheet_id.partner_id', string='Partner', readonly=True, store=True)
+    product_uom_category_id = fields.Many2one(related='product_id.uom_id.category_id', readonly=True)
+    name = fields.Char('Description')
+    note = fields.Char('Remarks')
+    product_qty = fields.Float('Quantity',default=1.0)
+    uom_id = fields.Many2one('uom.uom', string='UoM')
+    existing_price = fields.Float('Existing Price')
+    rfq_price = fields.Float('RFQ Price')
+    total_price = fields.Float(compute='_compute_total_price', string='Total Price')
+    
+    @api.depends('product_qty','rfq_price')
+    def _compute_total_price(self):
+        for this in self:
+            total = 0.0
+            total = this.product_qty * this.rfq_price
+            this.total_price = total
+        
+    
+class IntakePackage(models.Model):
+    _name = 'intake.package'
+    _description = 'Intake Package'
+    
+    cost_sheet_id = fields.Many2one('cost.sheet', string='Cost Sheet')
+    display_type = fields.Selection([
+        ('line_section', "Section"),
+        ('line_note', "Note")], default=False, help="Technical field for UX purpose.")
+    sequence = fields.Integer('Sequence')
+    product_id = fields.Many2one('product.product', string='Product')
+    partner_id = fields.Many2one('res.partner', related='cost_sheet_id.partner_id', string='Partner', readonly=True, store=True)
+    product_uom_category_id = fields.Many2one(related='product_id.uom_id.category_id', readonly=True)
+    name = fields.Char('Description')
+    note = fields.Char('Remarks')
+    product_qty = fields.Float('Quantity',default=1.0)
+    uom_id = fields.Many2one('uom.uom', string='UoM')
+    existing_price = fields.Float('Existing Price')
+    rfq_price = fields.Float('RFQ Price')
+    total_price = fields.Float(compute='_compute_total_price', string='Total Price')
+    
+    @api.depends('product_qty','rfq_price')
+    def _compute_total_price(self):
+        for this in self:
+            total = 0.0
+            total = this.product_qty * this.rfq_price
+            this.total_price = total
+        
+class PretreatmentPackage(models.Model):
+    _name = 'pretreatment.package'
+    _description = 'Pretreatment Package'
+    
+    
+    cost_sheet_id = fields.Many2one('cost.sheet', string='Cost Sheet')
+    display_type = fields.Selection([
+        ('line_section', "Section"),
+        ('line_note', "Note")], default=False, help="Technical field for UX purpose.")
+    sequence = fields.Integer('Sequence')
+    product_id = fields.Many2one('product.product', string='Product')
+    partner_id = fields.Many2one('res.partner', related='cost_sheet_id.partner_id', string='Partner', readonly=True, store=True)
+    product_uom_category_id = fields.Many2one(related='product_id.uom_id.category_id', readonly=True)
+    name = fields.Char('Description')
+    note = fields.Char('Remarks')
+    product_qty = fields.Float('Quantity',default=1.0)
+    uom_id = fields.Many2one('uom.uom', string='UoM')
+    existing_price = fields.Float('Existing Price')
+    rfq_price = fields.Float('RFQ Price')
+    total_price = fields.Float(compute='_compute_total_price', string='Total Price')
+    
+    @api.depends('product_qty','rfq_price')
+    def _compute_total_price(self):
+        for this in self:
+            total = 0.0
+            total = this.product_qty * this.rfq_price
+            this.total_price = total
+        
+    
+class SwroPackage(models.Model):
+    _name = 'swro.package'
+    _description = 'Swro Package'
+    
+    
+    
+    cost_sheet_id = fields.Many2one('cost.sheet', string='Cost Sheet')
+    display_type = fields.Selection([
+        ('line_section', "Section"),
+        ('line_note', "Note")], default=False, help="Technical field for UX purpose.")
+    sequence = fields.Integer('Sequence')
+    product_id = fields.Many2one('product.product', string='Product')
+    partner_id = fields.Many2one('res.partner', related='cost_sheet_id.partner_id', string='Partner', readonly=True, store=True)
+    product_uom_category_id = fields.Many2one(related='product_id.uom_id.category_id', readonly=True)
+    name = fields.Char('Description')
+    note = fields.Char('Remarks')
+    product_qty = fields.Float('Quantity',default=1.0)
+    uom_id = fields.Many2one('uom.uom', string='UoM')
+    existing_price = fields.Float('Existing Price')
+    rfq_price = fields.Float('RFQ Price')
+    total_price = fields.Float(compute='_compute_total_price', string='Total Price')
+    
+    @api.depends('product_qty','rfq_price')
+    def _compute_total_price(self):
+        for this in self:
+            total = 0.0
+            total = this.product_qty * this.rfq_price
+            this.total_price = total
+        
+    
+class BrineInjectionPackage(models.Model):
+    _name = 'brine.injection.package'
+    _description = 'Brine Injection Package'
+    
+    
+    cost_sheet_id = fields.Many2one('cost.sheet', string='Cost Sheet')
+    display_type = fields.Selection([
+        ('line_section', "Section"),
+        ('line_note', "Note")], default=False, help="Technical field for UX purpose.")
+    sequence = fields.Integer('Sequence')
+    product_id = fields.Many2one('product.product', string='Product')
+    partner_id = fields.Many2one('res.partner', related='cost_sheet_id.partner_id', string='Partner', readonly=True, store=True)
+    product_uom_category_id = fields.Many2one(related='product_id.uom_id.category_id', readonly=True)
+    name = fields.Char('Description')
+    note = fields.Char('Remarks')
+    product_qty = fields.Float('Quantity',default=1.0)
+    uom_id = fields.Many2one('uom.uom', string='UoM')
+    existing_price = fields.Float('Existing Price')
+    rfq_price = fields.Float('RFQ Price')
+    total_price = fields.Float(compute='_compute_total_price', string='Total Price')
+    
+    @api.depends('product_qty','rfq_price')
+    def _compute_total_price(self):
+        for this in self:
+            total = 0.0
+            total = this.product_qty * this.rfq_price
+            this.total_price = total
+        
+class ProductPackage(models.Model):
+    _name = 'product.package'
+    _description = 'Product Package'
+    
+    cost_sheet_id = fields.Many2one('cost.sheet', string='Cost Sheet')
+    display_type = fields.Selection([
+        ('line_section', "Section"),
+        ('line_note', "Note")], default=False, help="Technical field for UX purpose.")
+    sequence = fields.Integer('Sequence')
+    product_id = fields.Many2one('product.product', string='Product')
+    partner_id = fields.Many2one('res.partner', related='cost_sheet_id.partner_id', string='Partner', readonly=True, store=True)
+    product_uom_category_id = fields.Many2one(related='product_id.uom_id.category_id', readonly=True)
+    name = fields.Char('Description')
+    note = fields.Char('Remarks')
+    product_qty = fields.Float('Quantity',default=1.0)
+    uom_id = fields.Many2one('uom.uom', string='UoM')
+    existing_price = fields.Float('Existing Price')
+    rfq_price = fields.Float('RFQ Price')
+    total_price = fields.Float(compute='_compute_total_price', string='Total Price')
+    
+    @api.depends('product_qty','rfq_price')
+    def _compute_total_price(self):
+        for this in self:
+            total = 0.0
+            total = this.product_qty * this.rfq_price
+            this.total_price = total
+        
+    
+class ElectricalPackage(models.Model):
+    _name = 'electrical.package'
+    _description = 'Electrical Package'
+    
+    cost_sheet_id = fields.Many2one('cost.sheet', string='Cost Sheet')
+    display_type = fields.Selection([
+        ('line_section', "Section"),
+        ('line_note', "Note")], default=False, help="Technical field for UX purpose.")
+    sequence = fields.Integer('Sequence')
+    product_id = fields.Many2one('product.product', string='Product')
+    partner_id = fields.Many2one('res.partner', related='cost_sheet_id.partner_id', string='Partner', readonly=True, store=True)
+    product_uom_category_id = fields.Many2one(related='product_id.uom_id.category_id', readonly=True)
+    name = fields.Char('Description')
+    note = fields.Char('Remarks')
+    product_qty = fields.Float('Quantity',default=1.0)
+    uom_id = fields.Many2one('uom.uom', string='UoM')
+    existing_price = fields.Float('Existing Price')
+    rfq_price = fields.Float('RFQ Price')
+    total_price = fields.Float(compute='_compute_total_price', string='Total Price')
+    
+    @api.depends('product_qty','rfq_price')
+    def _compute_total_price(self):
+        for this in self:
+            total = 0.0
+            total = this.product_qty * this.rfq_price
+            this.total_price = total
+    
+class CivilWork(models.Model):
+    _name = 'civil.work'
+    _description = 'Civil Work'
+    
+    
+    cost_sheet_id = fields.Many2one('cost.sheet', string='Cost Sheet')
+    display_type = fields.Selection([
+        ('line_section', "Section"),
+        ('line_note', "Note")], default=False, help="Technical field for UX purpose.")
+    sequence = fields.Integer('Sequence')
+    product_id = fields.Many2one('product.product', string='Product')
+    partner_id = fields.Many2one('res.partner', related='cost_sheet_id.partner_id', string='Partner', readonly=True, store=True)
+    product_uom_category_id = fields.Many2one(related='product_id.uom_id.category_id', readonly=True)
+    name = fields.Char('Description')
+    note = fields.Char('Remarks')
+    product_qty = fields.Float('Quantity',default=1.0)
+    uom_id = fields.Many2one('uom.uom', string='UoM')
+    existing_price = fields.Float('Existing Price')
+    rfq_price = fields.Float('RFQ Price')
+    total_price = fields.Float(compute='_compute_total_price', string='Total Price')
+    
+    @api.depends('product_qty','rfq_price')
+    def _compute_total_price(self):
+        for this in self:
+            total = 0.0
+            total = this.product_qty * this.rfq_price
+            this.total_price = total
+    
+    
+
+
 
 class ProjectRab(models.Model):
     _name = 'project.rab'

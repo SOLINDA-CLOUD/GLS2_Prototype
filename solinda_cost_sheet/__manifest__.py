@@ -20,7 +20,7 @@
     'version': '0.1',
 
     # any module necessary for this one to work correctly
-    'depends': ['base','project','sale_project','sale_crm','purchase_requisition','report_xlsx','purchase'],
+    'depends': ['base','project','sale_project','sale_crm','purchase_requisition','purchase','mrp','report_py3o'],
 
     # always loaded
     'data': [
@@ -37,6 +37,7 @@
         'views/purchase_order_views.xml',
         'report/action_report.xml',
         'report/rab_report_template.xml',
+        'report/report_rfq.xml',
         'views/menuitem_views.xml',
         'views/templates.xml',
     ],
@@ -45,4 +46,5 @@
         'demo/demo.xml',
     ],
     "application": True,
+    'license': 'LGPL-3'
 }
