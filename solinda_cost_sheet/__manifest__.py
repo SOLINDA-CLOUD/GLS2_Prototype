@@ -26,6 +26,8 @@
     'data': [
         'security/ir.model.access.csv',
         'views/crm_views.xml',
+        'views/mrp_views.xml',
+        'views/product_template_views.xml',
         'views/rab_template_views.xml',
         'views/cost_sheet_views.xml',
         'views/rap_views.xml',
